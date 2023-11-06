@@ -1,0 +1,190 @@
+Sub Wage_and_Income()
+
+    Dim Input_Sht As Worksheet, Output_Sht As Worksheet
+    
+    Dim LastRow As Long
+    Dim a As Long, b As Long, c As Long, d As Long, i As Long, j As Long, k As Long, m As Long
+    Dim Count As Long
+    
+    Dim Form_Name As String
+    
+Application.ScreenUpdating = False
+
+Set Output_Sht = Sheets.Add(After:=Sheets(Sheets.Count))
+
+    Set Input_Sht = ActiveWorkbook.Sheets("Input_Sht")
+    LastRow = Input_Sht.Cells(Input_Sht.Rows.Count, "A").End(xlUp).Row
+
+If Input_Sht Is Nothing Or Output_Sht Is Nothing Then
+MsgBox "Error: One of the sheets does not exist"
+Exit Sub
+End If
+ 
+Form_Name = "FORM 1099-B PROCEEDS FROM BROKER AND BARTER EXCHANGE"
+
+Input_Sht.Activate
+'COUNT NUMBER OF TIMES 1099-B APPEARS IN THE INPUT SHEET
+    For i = 1 To LastRow
+        If InStr(1, UCase(Input_Sht.Cells(i, "A").Value), Form_Name) > 0 Then
+            Count = Count + 1
+        End If
+    Next i
+    
+'FIND FIRST ROW OF 1099B AND NAME THAT ROW "J"
+    For i = 1 To LastRow
+        If InStr(1, UCase(Input_Sht.Cells(i, "A").Value), Form_Name) > 0 Then
+            j = Input_Sht.Cells(i, "A").Row
+            Exit For
+        End If
+    Next i
+
+'FIND SECOND INSTANCE OF 1099B AND NAME THAT ROW "K"
+    For i = j + 1 To LastRow
+        If InStr(1, UCase(Input_Sht.Cells(i, "A").Value), Form_Name) > 0 Then
+            k = Input_Sht.Cells(i, "A").Row
+            Exit For
+        End If
+    Next i
+
+Dim ITEM() As String 'ITEM WILL BE WHAT APPEARS TO THE LEFT OF THE ":"
+Dim Amt() As String 'AMOUNT WILL BE WHAT APPEARS TO THE RIGHT OF THE ":"
+
+'ITEM & AMOUNT WILL BOTH BE ARRAYS
+'C IS DEFINED TO FIGURE OUT HOW BIG THE ARRAY IS GOING TO BE
+c = 0
+For i = j To k
+    If InStr(1, Input_Sht.Cells(i, "A").Value, ":") > 0 Then
+        c = c + 1
+    End If
+Next i
+
+'REDEFINE THE DIMENSIONS OF THE ARRAY TO BE C
+ReDim Header(c)
+ReDim Amt(c)
+
+'WE'RE DEFINING THE HEADER() AND AMT() ARRAYS HERE BY GOING THROUGH THE FIRST INSTANCE OF 1099B AND
+'IF THE CELL IS NOT BLANK, THEN TO THE LEFT OF ":" WILL BE THE HEADER AND TO THE RIGHT WILL BE THE AMOUNT
+
+b = 1
+For i = j To k
+    If InStr(1, Range("A" & i).Value, ":") > 0 Then
+        Header(b) = Left(Input_Sht.Cells(i, "A").Value, InStr(1, Input_Sht.Cells(i, "A").Value, ":"))
+        Amt(b) = Trim(Right(Input_Sht.Cells(i, "A").Value, Len(Input_Sht.Cells(i, "A").Value) - InStr(Input_Sht.Cells(i, "A").Value, ":")))
+        b = b + 1
+    End If
+Next i
+
+'M IS JUST THE FIRST ROW THAT DATA WILL APPEAR ON THE OUTPUT_SHT
+m = 2
+
+'ON THE OUTPUT SHEET FROM COLUMNS 1 TO UPPERBOUND OF THE ARRAYS, POPULATE THE DATA WITH THE VALUES SET IN THE ARRAYS
+For i = 1 To c
+Output_Sht.Cells(1, i) = Header(i)
+Output_Sht.Cells(m, i) = Amt(i)
+Next i
+
+'SEPARATELY, PAYER/RECIPIENT NEED TO BE HANDLED DIFFERENTLY BECAUSE THE PAYER AND RECIPIENT DON'T APPEAR TO THE RIGHT OF THE ":"
+'INSTEAD PAYER/RECIPIENT ALWAYS APPEAR IN ONE CELL BELOW THE WORDS "PAYER'S FEDERAL IDENTIFICATION NUMBER" AND "Recipient's Identification Number:"
+
+    For i = j To k
+        If InStr(1, Input_Sht.Cells(i, "A").Value, "Payer's Federal Identification Number", vbTextCompare) > 0 Then
+            Output_Sht.Cells(m, 1) = Input_Sht.Cells(i, "A").Offset(1, 0).Value
+        Exit For
+        End If
+    Next i
+    
+    For i = j To k
+        If InStr(1, Input_Sht.Cells(i, "A").Value, "Recipient's Identification Number:", vbTextCompare) > 0 Then
+            Output_Sht.Cells(m, 3) = Input_Sht.Cells(i, "A").Offset(1, 0).Value
+        Exit For
+        End If
+    Next i
+        
+m = m + 1
+
+For d = 1 To Count - 2
+
+    'FIND NEXT LOOP IN 1099B
+
+    j = k 'YOUR BOTTOM ROW OF THE 1099B NOW BECOMES YOUR TOP ROW
+    
+        For i = j + 1 To LastRow
+            If InStr(1, UCase(Input_Sht.Cells(i, "A").Value), Form_Name) > 0 Then
+                k = Cells(i, "A").Row
+                Exit For
+            End If
+        Next i
+    
+    b = 0 'b is going to be column number on OUTPUT_SHT
+    
+    For b = 1 To c
+    For i = j To k
+        If InStr(1, Range("A" & i).Value, Header(b)) > 0 Then
+            Output_Sht.Cells(m, b) = Trim(Right(Input_Sht.Cells(i, "A").Value, Len(Input_Sht.Cells(i, "A").Value) - InStr(Input_Sht.Cells(i, "A").Value, ":")))
+        End If
+    Next i
+    Next b
+    
+'PAYER/RECIPIENT
+    For i = j To k
+        If InStr(1, Input_Sht.Cells(i, "A").Value, "Payer's Federal Identification Number", vbTextCompare) > 0 Then
+            Output_Sht.Cells(m, 1) = Input_Sht.Cells(i, "A").Offset(1, 0).Value
+        Exit For
+        End If
+    Next i
+    For i = j To k
+        If InStr(1, Input_Sht.Cells(i, "A").Value, "Recipient's Identification Number:", vbTextCompare) > 0 Then
+            Output_Sht.Cells(m, 3) = Input_Sht.Cells(i, "A").Offset(1, 0).Value
+        Exit For
+        End If
+    Next i
+    
+    m = m + 1
+
+Next d
+
+'LAST OCCURENCE NEEDS TO BE SPLIT OUT SEPARATELY BECAUSE THE BOTTOM IS NOT DEFINED BY THE WORDS "1099-B", SO WE'LL JUST SAY ALL THE DATA IS CONTAINED WITH 40 ROWS FROM TOP ROW
+b = 0
+j = k
+    For b = 1 To c
+    For i = j To j + 40
+        If InStr(1, Range("A" & i).Value, Header(b)) > 0 Then
+            Output_Sht.Cells(m, b) = Trim(Right(Input_Sht.Cells(i, "A").Value, Len(Input_Sht.Cells(i, "A").Value) - InStr(Input_Sht.Cells(i, "A").Value, ":")))
+        End If
+    Next i
+    Next b
+    
+'FILL IN PAYER LINES FOR FIRST ROW WITH OFFSET
+
+    For i = j To j + 40
+        If InStr(1, Input_Sht.Cells(i, "A").Value, "Payer's Federal Identification Number", vbTextCompare) > 0 Then
+            Output_Sht.Cells(m, 1) = Input_Sht.Cells(i, "A").Offset(1, 0).Value
+        Exit For
+        End If
+    Next i
+
+'FILL IN RECIPIENT
+    
+    For i = j To j + 40
+        If InStr(1, Input_Sht.Cells(i, "A").Value, "Recipient's Identification Number:", vbTextCompare) > 0 Then
+            Output_Sht.Cells(m, 3) = Input_Sht.Cells(i, "A").Offset(1, 0).Value
+        Exit For
+        End If
+    Next i
+
+Output_Sht.Activate
+
+Dim cell As Range
+
+    For Each cell In Output_Sht.Range(Cells(1, 1), Cells(m, c))
+        If InStr(cell.Value, "$") > 0 Then
+            cell.Value = Replace(cell.Value, "$", "")
+            cell.Value = Replace(cell.Value, " ", "")
+            cell.Value = Replace(cell.Value, vbTab, "")
+            cell.NumberFormat = "#,##0.00"
+        End If
+    Next cell
+
+Application.ScreenUpdating = True
+
+End Sub
